@@ -22,9 +22,11 @@ class SectionRequest(BaseModel):
     references: List[str] = []
     image_provided: bool = False
     image_path: Optional[str] = None
+    num_pages: int = 5
     
 class ReferenceRequest(BaseModel):
     idea: str
+    num_results: int = 15
 
 class ReferenceResponse(BaseModel):
     references: List[str]
@@ -52,6 +54,7 @@ class RegenerateRequest(BaseModel):
     references: List[str] = []
     image_provided: bool = False
     image_path: Optional[str] = None
+    num_pages: int = 5
 
 class SavePaperRequest(BaseModel):
     title: str
@@ -92,3 +95,11 @@ AVAILABLE_SECTIONS = [
     "Conclusion",
     "References"
 ]
+
+class ChatRequest(BaseModel):
+    message: str
+    html_context: str
+
+class ChatResponse(BaseModel):
+    reply: str
+    updated_content: Optional[str] = None

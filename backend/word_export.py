@@ -31,20 +31,35 @@ def create_word_document(title: str, authors: list, sections: list, references: 
         heading = document.add_heading(section['section'], level=1)
         
         # Split content by logical paragraphs (simple newline split)
-        content_paragraphs = section['content'].split('\n')
+        content_paragraphs = section['content'].split('\\n')
         for para_text in content_paragraphs:
             if para_text.strip():
                 p = document.add_paragraph(para_text.strip())
                 p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                
+        # Insert image immediately under the section if requested
+        if section.get('image_provided'):
+            if section.get('image_path'):
+                filename = os.path.basename(section['image_path'])
+                local_path = os.path.join("uploads", filename)
+                if os.path.exists(local_path):
+                    document.add_picture(local_path, width=Inches(6.0))
+                    last_paragraph = document.paragraphs[-1]
+                    last_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                else:
+                    document.add_paragraph(f"[Image not found: {filename}]")
+            else:
+                p = document.add_paragraph(f"(Insert diagram for {section['section']} here)")
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p.style.font.italic = True
 
-    # Images
-    if images:
+    # Global Images Catch-all
+    unused_images = [img for img in images if not any(img == s.get('image_path') for s in sections)]
+    if unused_images:
         document.add_heading("Appendix: Figures", level=1)
-        for img_url in images:
-            # Extract filename from URL (e.g., /uploads/image.png)
+        for img_url in unused_images:
             filename = os.path.basename(img_url)
             local_path = os.path.join("uploads", filename)
-            
             if os.path.exists(local_path):
                 document.add_picture(local_path, width=Inches(6.0))
                 last_paragraph = document.paragraphs[-1]

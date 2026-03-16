@@ -27,8 +27,8 @@ def create_latex_document(title: str, authors: list, sections: list, references:
                     # The image_path usually is like /uploads/filename.png
                     img_filename = os.path.basename(sec['image_path'])
                     local_img_path = os.path.join(os.getcwd(), "uploads", img_filename)
-                    # IEEE figure
-                    sections_latex += f"\\begin{{figure}}[!htbp]\n\\centering\n\\includegraphics[width=\\linewidth]{{{local_img_path}}}\n\\caption{{{sec_name} Diagram}}\n\\end{{figure}}\n\n"
+                    # IEEE figure anchoring with [H]
+                    sections_latex += f"\\begin{{figure}}[H]\n\\centering\n\\includegraphics[width=\\linewidth]{{{local_img_path}}}\n\\caption{{{sec_name} Diagram}}\n\\end{{figure}}\n\n"
                 else:
                     sections_latex += f"\\vspace{{2cm}}\n\\begin{{center}}\\textit{{(Insert diagram for {sec_name} here)}}\\end{{center}}\n\\vspace{{2cm}}\n\n"
 
@@ -41,7 +41,7 @@ def create_latex_document(title: str, authors: list, sections: list, references:
              if not used:
                  img_filename = os.path.basename(img_url)
                  local_img_path = os.path.join(os.getcwd(), "uploads", img_filename)
-                 sections_latex += f"\\begin{{figure}}[!htbp]\n\\centering\n\\includegraphics[width=\\linewidth]{{{local_img_path}}}\n\\caption{{Attached Figure}}\n\\end{{figure}}\n\n"
+                 sections_latex += f"\\begin{{figure}}[H]\n\\centering\n\\includegraphics[width=\\linewidth]{{{local_img_path}}}\n\\caption{{Attached Figure}}\n\\end{{figure}}\n\n"
 
 
     # Build references using thebibliography
@@ -61,6 +61,7 @@ def create_latex_document(title: str, authors: list, sections: list, references:
 \\usepackage{{algorithmic}}
 \\usepackage{{textcomp}}
 \\usepackage{{xcolor}}
+\\usepackage{{float}}
 
 \\begin{{document}}
 

@@ -3,9 +3,9 @@ import shutil
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sections import TitleRequest, TitleResponse, SectionRequest, SectionResponse, ReferenceRequest, ReferenceResponse, ExportWordRequest, ExportPdfRequest, RegenerateRequest, SavePaperRequest, SavePaperResponse, LoadPaperResponse
+from sections import TitleRequest, TitleResponse, SectionRequest, SectionResponse, ReferenceRequest, ReferenceResponse, ExportWordRequest, ExportPdfRequest, RegenerateRequest, SavePaperRequest, SavePaperResponse, LoadPaperResponse, ChatRequest, ChatResponse
 from llm import generate_text
-from prompts import generate_title_prompt, generate_section_prompt, generate_regeneration_prompt
+from prompts import generate_title_prompt, generate_section_prompt, generate_regeneration_prompt, generate_chat_prompt
 from reference_agent import generate_references
 from word_export import create_word_document
 from latex_export import create_latex_document
@@ -39,7 +39,7 @@ def generate_title(req: TitleRequest):
 @app.post("/generate-section", response_model=SectionResponse)
 def generate_section(req: SectionRequest):
     try:
-        prompt = generate_section_prompt(req.section, req.idea, req.title, req.authors, req.references)
+        prompt = generate_section_prompt(req.section, req.idea, req.title, req.authors, req.references, req.num_pages)
         content = generate_text(prompt)
         return SectionResponse(section=req.section, content=content)
     except Exception as e:
@@ -95,7 +95,7 @@ def api_export_pdf(req: ExportPdfRequest):
 def api_regenerate_section(req: RegenerateRequest):
     try:
         prompt = generate_regeneration_prompt(
-            req.section_name, req.idea, req.title, req.authors, req.existing_sections, req.references
+            req.section_name, req.idea, req.title, req.authors, req.existing_sections, req.references, req.num_pages
         )
         content = generate_text(prompt)
         return SectionResponse(section=req.section_name, content=content)
@@ -129,6 +129,27 @@ def api_load_paper(paper_id: str):
             return LoadPaperResponse(**data)
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/chat", response_model=ChatResponse)
+def api_chat(req: ChatRequest):
+    try:
+        import re
+        prompt = generate_chat_prompt(req.message, req.html_context)
+        response_text = generate_text(prompt)
+        
+        # Extract JSON ignoring conversational artifacts
+        match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        if match:
+            data = json.loads(match.group(0))
+            return ChatResponse(
+                reply=data.get("reply", "I processed your request."),
+                updated_content=data.get("updated_content")
+            )
+        else:
+            return ChatResponse(reply=response_text, updated_content=None)
+            
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

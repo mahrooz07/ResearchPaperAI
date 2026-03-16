@@ -9,6 +9,7 @@ import SectionSelector from './components/SectionSelector';
 import ImageUploader from './components/ImageUploader';
 import PaperEditor from './components/PaperEditor';
 import AuthorForm from './components/AuthorForm';
+import ChatAssistant from './components/ChatAssistant';
 import { FileText, Download, BookOpen, Save, UploadCloud, RefreshCw } from 'lucide-react';
 import './index.css';
 
@@ -22,6 +23,7 @@ const AVAILABLE_SECTIONS = [
 function App() {
   const [idea, setIdea] = useState("");
   const [title, setTitle] = useState(null);
+  const [numPages, setNumPages] = useState(5);
   const [loadingTitle, setLoadingTitle] = useState(false);
 
   const [authors, setAuthors] = useState([]);
@@ -73,14 +75,17 @@ function App() {
       alert("No authors to insert. Please add authors first.");
       return;
     }
-    let html = `<div style="text-align: center;">`;
+    const colWidth = Math.floor(100 / authors.length);
+    let html = `<table style="width: 100%; border: none; text-align: center; margin-bottom: 20px;"><tr>`;
     authors.forEach((author) => {
-      html += `<p style="margin: 0; padding: 0;"><strong>${author.name}</strong></p>
-<p style="margin: 0; padding: 0;">${author.department || ''}, ${author.affiliation || ''}</p>
+      html += `<td style="width: ${colWidth}%; vertical-align: top; padding: 10px;">
+<p style="margin: 0; padding: 0; font-size: 1.1em;"><strong>${author.name}</strong></p>
+<p style="margin: 0; padding: 0;">${author.department ? author.department + ', ' : ''}${author.affiliation || ''}</p>
 <p style="margin: 0; padding: 0;">${author.country || ''}</p>
-<p style="margin: 0; padding: 0;">${author.email || ''}</p><br/>`;
+<p style="margin: 0; padding: 0;">${author.email || ''}</p>
+</td>`;
     });
-    html += `</div>`;
+    html += `</tr></table><br/>`;
     setEditorContent(prev => html + prev);
   };
 
@@ -135,14 +140,17 @@ function App() {
     let html = "";
     if (title) html += `<h1 style="text-align: center;">${title}</h1><br/>`;
     if (authors.length > 0) {
-      html += `<div style="text-align: center;">`;
+      const colWidth = Math.floor(100 / authors.length);
+      html += `<table style="width: 100%; border: none; text-align: center; margin-bottom: 20px;"><tr>`;
       authors.forEach((author) => {
-        html += `<p style="margin: 0; padding: 0;"><strong>${author.name}</strong></p>
-<p style="margin: 0; padding: 0;">${author.department || ''}, ${author.affiliation || ''}</p>
+        html += `<td style="width: ${colWidth}%; vertical-align: top; padding: 10px;">
+<p style="margin: 0; padding: 0; font-size: 1.1em;"><strong>${author.name}</strong></p>
+<p style="margin: 0; padding: 0;">${author.department ? author.department + ', ' : ''}${author.affiliation || ''}</p>
 <p style="margin: 0; padding: 0;">${author.country || ''}</p>
-<p style="margin: 0; padding: 0;">${author.email || ''}</p><br/>`;
+<p style="margin: 0; padding: 0;">${author.email || ''}</p>
+</td>`;
       });
-      html += `</div>`;
+      html += `</tr></table><br/>`;
     }
 
     newSectionsData.forEach(sec => {
@@ -158,8 +166,13 @@ function App() {
     });
 
     if (refsData.length > 0) {
-      const refsHtml = refsData.map((r, i) => `[${i + 1}] ${r}`).join('<br/>');
-      html += `<h2>References</h2><p>${refsHtml}</p>`;
+      const refsHtml = refsData.map((r, i) => {
+        // Strip out LLM fallback prefixes like '1.', '[1]', ensuring perfect alignment
+        let cleanRef = r.split('|||SNIPPET|||')[0].trim();
+        cleanRef = cleanRef.replace(/^(\[\d+\]|\d+\.)\s*/, '');
+        return `<p style="margin-left: 2em; text-indent: -2em; margin-bottom: 0.5em; line-height: 1.4;">[${i + 1}] ${cleanRef}</p>`;
+      }).join('');
+      html += `<h2>References</h2>${refsHtml}`;
     }
 
     setEditorContent(html);
@@ -180,7 +193,7 @@ function App() {
           const imgProvided = sectionImages[section]?.provided || false;
           const imgPath = sectionImages[section]?.path || null;
 
-          const { data } = await generateSectionText(idea, title, section, authors, referencesData, imgProvided, imgPath);
+          const { data } = await generateSectionText(idea, title, section, authors, referencesData, imgProvided, imgPath, numPages);
 
           newSectionsData.push({
             section: section,
@@ -206,7 +219,7 @@ function App() {
       const targetImgProvided = sectionImages[sectionName]?.provided || false;
       const targetImgPath = sectionImages[sectionName]?.path || null;
 
-      const { data } = await regenerateSectionText(idea, title, authors, sectionName, sectionsData, referencesData, targetImgProvided, targetImgPath);
+      const { data } = await regenerateSectionText(idea, title, authors, sectionName, sectionsData, referencesData, targetImgProvided, targetImgPath, numPages);
 
       const newSectionsData = sectionsData.map(sec => {
         if (sec.section === sectionName) {
@@ -261,7 +274,8 @@ function App() {
     setExporting(true);
     try {
       const { data } = await exportWordDocument(title, authors, sectionsData, referencesData, imagesData);
-      triggerDownload(data.url, 'paper.docx');
+      const safeFilename = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      triggerDownload(data.url, `${safeFilename}.docx`);
     } catch (err) {
       alert("Error exporting Word document: " + err.message);
     } finally {
@@ -274,7 +288,8 @@ function App() {
     setExportingPdf(true);
     try {
       const { data } = await exportPdfDocument(title, authors, sectionsData, referencesData, imagesData);
-      triggerDownload(data.url, 'paper.pdf');
+      const safeFilename = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      triggerDownload(data.url, `${safeFilename}.pdf`);
     } catch (err) {
       alert("Error exporting PDF document: " + err.message);
     } finally {
@@ -332,6 +347,27 @@ function App() {
         />
 
         <div className="panel" style={{ paddingBottom: '1rem' }}>
+          <div className="panel-title">
+            <BookOpen size={24} color="#818cf8" />
+            <span>Paper Settings</span>
+          </div>
+
+          <div style={{ marginBottom: '1.5rem', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <label style={{ fontSize: '0.95rem', fontWeight: '500', color: 'var(--text-color)', margin: 0 }}>Target Page Count</label>
+              <span style={{ background: '#6366f1', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.85rem', fontWeight: '600' }}>
+                {numPages} {numPages === 1 ? 'Page' : 'Pages'}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="1" max="25"
+              value={numPages}
+              onChange={(e) => setNumPages(Number(e.target.value))}
+              style={{ width: '100%', cursor: 'pointer', accentColor: '#6366f1' }}
+            />
+          </div>
+
           <AuthorForm
             authors={authors}
             setAuthors={setAuthors}
@@ -455,6 +491,11 @@ function App() {
           setContent={setEditorContent}
         />
       </div>
+
+      <ChatAssistant
+        editorContent={editorContent}
+        setEditorContent={setEditorContent}
+      />
     </div>
   );
 }
